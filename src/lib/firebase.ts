@@ -61,11 +61,14 @@ export const isLocalDev = (): boolean => {
 // Sign in with Google via popup. Throws auth/popup-blocked if the browser
 // blocks the popup — callers should fall back to signInWithGoogleRedirect().
 export const signInWithGoogle = async () => {
+  console.log('[Pebbles auth] signInWithPopup() called');
   try {
     const result = await signInWithPopup(auth, googleProvider);
+    console.log('[Pebbles auth] popup sign-in succeeded for:', result.user.email);
     return result.user;
   } catch (error) {
-    console.error('Error signing in (popup):', error);
+    const code = (error as { code?: string })?.code;
+    console.error('[Pebbles auth] signInWithPopup threw:', code, error);
     throw error;
   }
 };
@@ -73,10 +76,12 @@ export const signInWithGoogle = async () => {
 // Fallback: sign in with Google via redirect (navigates the current tab to
 // Google, then returns). Used when the popup is blocked by the browser.
 export const signInWithGoogleRedirect = async () => {
+  console.log('[Pebbles auth] signInWithRedirect() called — the page should now navigate to Google…');
   try {
     await signInWithRedirect(auth, googleProvider);
   } catch (error) {
-    console.error('Error starting redirect sign in:', error);
+    const code = (error as { code?: string })?.code;
+    console.error('[Pebbles auth] signInWithRedirect threw (page did NOT navigate):', code, error);
     throw error;
   }
 };
@@ -84,11 +89,18 @@ export const signInWithGoogleRedirect = async () => {
 // Resolve the result of a redirect sign-in after the browser returns from
 // Google. Call once on app load.
 export const completeRedirectSignIn = async (): Promise<User | null> => {
+  console.log('[Pebbles auth] getRedirectResult() called');
   try {
     const result = await getRedirectResult(auth);
+    if (result?.user) {
+      console.log('[Pebbles auth] getRedirectResult returned user:', result.user.email);
+    } else {
+      console.log('[Pebbles auth] getRedirectResult returned null — no pending redirect credential in the URL.');
+    }
     return result?.user ?? null;
   } catch (error) {
-    console.error('Error completing redirect sign in:', error);
+    const code = (error as { code?: string })?.code;
+    console.error('[Pebbles auth] getRedirectResult threw:', code, error);
     throw error;
   }
 };

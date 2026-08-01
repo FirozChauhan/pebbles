@@ -24,6 +24,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    //  Log the full URL state on load. After a redirect sign-in, Firebase
+    //  appends the credential to the URL (query string and/or hash). Whether it
+    //  is present here is the fastest way to tell whether the redirect round-trip
+    //  actually completed — and whether getRedirectResult() should find anything.
+    console.log('[Pebbles auth] page load — href:', window.location.href);
+    console.log(
+      '[Pebbles auth] page load — search:', window.location.search || '(empty)',
+      '| hash:', window.location.hash || '(empty)'
+    );
+
     //  Complete any in-progress redirect sign-in (browser returned from Google).
     //  getRedirectResult resolves with the credential if we just came back from
     //  a redirect sign-in, or null otherwise. We log it so the round-trip is
@@ -55,7 +65,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // channel fail silently — see isLocalDev). On production this navigates the
     // page to Google and back; getRedirectResult() + the onAuthStateChanged
     // listener below restore the session when the browser returns.
-    if (isLocalDev()) {
+    const local = isLocalDev();
+    console.log('[Pebbles auth] signIn() invoked — isLocalDev:', local, '→ using', local ? 'popup' : 'redirect');
+    if (local) {
       await signInWithGoogle();
     } else {
       await signInWithGoogleRedirect();

@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { type JSX } from "react/jsx-runtime";
 import { useAuth } from "../AuthContext.tsx";
-import { isLocalDev } from "../lib/firebase.ts";
 import { Pebble } from "../assets/Icons.tsx";
 
 //  Official multicolor Google "G" logo
@@ -42,7 +41,7 @@ const friendlyAuthMessage = (code?: string, fallback?: string): string => {
       return "Sign-in was cancelled. Try again whenever you're ready.";
     case "auth/cancelled-popup-request":
     case "auth/popup-blocked":
-      return "The sign-in popup was blocked. We'll retry using a redirect.";
+      return "The sign-in popup was blocked. Allow popups for this site and try again.";
     default:
       return fallback ?? "Couldn't sign in. Please try again.";
   }
@@ -54,9 +53,8 @@ interface AuthModalProps {
 }
 
 const AuthModal = ({ open, onClose }: AuthModalProps): JSX.Element | null => {
-  const { signIn, signInRedirect } = useAuth();
+  const { signIn } = useAuth();
   const [busy, setBusy] = useState(false);
-  const [redirecting, setRedirecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   if (!open) return null;
@@ -65,56 +63,15 @@ const AuthModal = ({ open, onClose }: AuthModalProps): JSX.Element | null => {
     setBusy(true);
     setError(null);
 
-    //  On deployed domains signIn() uses the redirect flow (the page navigates
-    //  to Google and back), so flip the button to "Redirecting…" up front. On
-    //  localhost it uses a popup, so we keep the "Connecting…" state.
-    const local = isLocalDev();
-    if (!local) setRedirecting(true);
-
     try {
+      //  signIn() opens the Google popup. The page stays put, so any error is
+      //  caught here and shown in the modal with a friendly, actionable message.
       await signIn();
-      //  Only reachable for the popup path — the redirect path navigates the
-      //  page away to Google before this line runs.
       onClose();
     } catch (err) {
       const code = (err as { code?: string })?.code;
       console.error('[Pebbles auth] sign-in failed:', code, err);
-
-      //  User closed the popup themselves — let them retry, don't auto-redirect.
-      if (code === "auth/popup-closed-by-user") {
-        setRedirecting(false);
-        setError(friendlyAuthMessage(code));
-        return;
-      }
-
-      //  Domain not authorized for Google sign-in. Neither popup NOR redirect
-      //  will work until the deployed domain is added in the Firebase Console
-      //  (Authentication → Settings → Authorized domains). Show a clear message.
-      if (code === "auth/unauthorized-domain" || code === "auth/operation-not-supported-in-this-environment") {
-        setRedirecting(false);
-        setError(friendlyAuthMessage(code));
-        return;
-      }
-
-      //  Any other popup failure (popup blocked, third-party-cookie blocking,
-      //  cancelled-popup-request, network blips, …) — fall back to the redirect
-      //  flow, which runs in the top-level page context and is far more reliable
-      //  on a production domain. Only meaningful when we started with a popup
-      //  (localhost); on production signIn() already used redirect.
-      if (local) {
-        setRedirecting(true);
-        try {
-          await signInRedirect();
-        } catch (redirectErr) {
-          const rCode = (redirectErr as { code?: string })?.code;
-          console.error('[Pebbles auth] redirect sign-in failed:', rCode, redirectErr);
-          setRedirecting(false);
-          setError(friendlyAuthMessage(rCode, redirectErr instanceof Error ? redirectErr.message : undefined));
-        }
-      } else {
-        setRedirecting(false);
-        setError(friendlyAuthMessage(code, err instanceof Error ? err.message : undefined));
-      }
+      setError(friendlyAuthMessage(code, err instanceof Error ? err.message : undefined));
     } finally {
       setBusy(false);
     }
@@ -168,11 +125,7 @@ const AuthModal = ({ open, onClose }: AuthModalProps): JSX.Element | null => {
           ) : (
             <GoogleIcon />
           )}
-          {redirecting
-            ? "Redirecting to Google…"
-            : busy
-              ? "Connecting to Google…"
-              : "Continue with Google"}
+          {busy ? "Connecting to Google…" : "Continue with Google"}
         </button>
 
         {error && (

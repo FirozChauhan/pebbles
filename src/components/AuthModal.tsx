@@ -25,27 +25,26 @@ const GoogleIcon = () => (
   </svg>
 );
 
-//  Map Firebase auth error codes to short, actionable messages so the user
-//  understands *why* sign-in failed instead of seeing a raw Firebase string.
-//  The most common one on a fresh Vercel deploy is "auth/unauthorized-domain",
-//  which happens when the deployed domain hasn't been added to Firebase's
-//  Authorized domains list (Firebase Console → Authentication → Settings).
-const friendlyAuthMessage = (code?: string, fallback?: string): string => {
-  switch (code) {
-    case "auth/unauthorized-domain":
-    case "auth/operation-not-supported-in-this-environment":
-      return "This site's domain isn't authorized for Google sign-in. Add your Vercel URL to Firebase → Authentication → Settings → Authorized domains, then try again.";
-    case "auth/network-request-failed":
-      return "Couldn't reach Google. Check your connection and try again.";
-    case "auth/popup-closed-by-user":
-      return "Sign-in was cancelled. Try again whenever you're ready.";
-    case "auth/cancelled-popup-request":
-    case "auth/popup-blocked":
-      return "The sign-in popup was blocked. Allow popups for this site and try again.";
-    default:
-      return fallback ?? "Couldn't sign in. Please try again.";
+//  Since sign-in is a full-page OAuth redirect, most errors are network/config
+//  problems rather than per-click auth errors. We surface a small map of common
+//  failures and fall back to a friendly generic message instead of a raw SDK
+//  string.
+const friendlyAuthMessage = (err: unknown): string => {
+  //  Supabase errors carry a `message` and sometimes a `status`/`code`.
+  const message = err instanceof Error ? err.message : String(err ?? '');
+
+  if (/unauthorized|redirect.*not.*allow|invalid.*redirect/i.test(message)) {
+    return "This site's URL isn't whitelisted for Google sign-in yet. Add your Vercel domain to Supabase → Authentication → URL Configuration → Redirect URLs, then try again.";
   }
+  if (/network|fetch|failed to fetch|timed out/i.test(message)) {
+    return "Couldn't reach the authentication service. Check your connection and try again.";
+  }
+  if (/missing|invalid api key|invalid credent/i.test(message)) {
+    return 'The app is missing its Supabase configuration. Please contact support.';
+  }
+  return message || "Couldn't sign in. Please try again.";
 };
+
 
 interface AuthModalProps {
   open: boolean;
@@ -64,14 +63,14 @@ const AuthModal = ({ open, onClose }: AuthModalProps): JSX.Element | null => {
     setError(null);
 
     try {
-      //  signIn() opens the Google popup. The page stays put, so any error is
-      //  caught here and shown in the modal with a friendly, actionable message.
+      //  signIn() starts a full-page Google redirect. For most flows the page
+      //  navigates away immediately, but any synchronous/config error is caught
+      //  here and shown in the modal with a friendly, actionable message.
       await signIn();
       onClose();
     } catch (err) {
-      const code = (err as { code?: string })?.code;
-      console.error('[Pebbles auth] sign-in failed:', code, err);
-      setError(friendlyAuthMessage(code, err instanceof Error ? err.message : undefined));
+      console.error('[Pebbles auth] sign-in failed:', err);
+      setError(friendlyAuthMessage(err));
     } finally {
       setBusy(false);
     }

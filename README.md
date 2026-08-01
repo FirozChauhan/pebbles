@@ -12,7 +12,7 @@ Upload your resume, pick a target role, and let AI rewrite it into an **ATS-opti
 <img src="https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript"/>
 <img src="https://img.shields.io/badge/Vite_8-646CFF?style=for-the-badge&logo=vite&logoColor=white" alt="Vite"/>
 <img src="https://img.shields.io/badge/Tailwind_CSS_4-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white" alt="Tailwind CSS"/>
-<img src="https://img.shields.io/badge/Firebase-FFCA28?style=for-the-badge&logo=firebase&logoColor=black" alt="Firebase"/>
+<img src="https://img.shields.io/badge/Supabase-3FCF8E?style=for-the-badge&logo=supabase&logoColor=white" alt="Supabase"/>
 <img src="https://img.shields.io/badge/Groq_AI-F55036?style=for-the-badge&logo=coloros&logoColor=white" alt="Groq"/>
 
 </div>
@@ -25,7 +25,7 @@ Upload your resume, pick a target role, and let AI rewrite it into an **ATS-opti
 |---|---|
 | 📄 | **PDF In → PDF Out** — upload your resume, get an optimized PDF back, auto-downloaded |
 | 🎯 | **Targeted or Simple** — enter a job role for full ATS tailoring, or leave blank for general optimization |
-| 🔐 | **Google Auth** — sign in via a custom in-app modal (Firebase) |
+| 🔐 | **Google Auth** — sign in via a custom in-app modal (Supabase) |
 | 📱 | **Fully Responsive** — mobile-first, single-page tool on phones; full desktop experience on larger screens |
 | ✨ | **Interactive Dot Background** — canvas-based, reacts to cursor & touch |
 | 🎨 | **Template Selector** — pick from resume templates (desktop) |
@@ -37,7 +37,7 @@ Upload your resume, pick a target role, and let AI rewrite it into an **ATS-opti
 
 - **React 19** + **TypeScript** + **Vite 8**
 - **Tailwind CSS v4** for styling
-- **Firebase Auth** (Google sign-in, popup flow)
+- **Supabase Auth** (Google sign-in, full-page redirect flow — Vercel friendly)
 - **React Router v7** for routing
 - **shadcn/ui** components + **lucide-react** icons
 - **Motion** for animations
@@ -61,7 +61,7 @@ npm install
 
 ### 3 · Configure environment
 
-Copy the example file and fill in your Firebase web-app credentials:
+Copy the example file and fill in your Supabase client credentials:
 
 ```bash
 cp .env.example .env
@@ -70,14 +70,17 @@ cp .env.example .env
 | Variable | Description |
 |---|---|
 | `VITE_API_URL` | Backend API base URL (default `http://localhost:8000`) |
-| `VITE_FIREBASE_API_KEY` | Firebase → Project settings → Web app → API key |
-| `VITE_FIREBASE_AUTH_DOMAIN` | `<projectId>.firebaseapp.com` |
-| `VITE_FIREBASE_PROJECT_ID` | Your Firebase project ID |
-| `VITE_FIREBASE_STORAGE_BUCKET` | `<projectId>.firebasestorage.app` |
-| `VITE_FIREBASE_MESSAGING_SENDER_ID` | Sender ID from Firebase config |
-| `VITE_FIREBASE_APP_ID` | App ID from Firebase config |
+| `VITE_SUPABASE_URL` | Supabase project URL (`https://<ref>.supabase.co`) |
+| `VITE_SUPABASE_ANON_KEY` | Supabase anon/public key (Project Settings → API) |
 
 > ⚠️ **Never commit `.env`** — it's gitignored. Only `.env.example` is shared.
+
+> 🔑 **One-time Supabase setup for Google sign-in:** In Supabase → Authentication →
+> Providers → Google, enable the provider. Then in **Authentication → URL
+> Configuration**, add your app's URLs (e.g. `http://localhost:5173`,
+> `https://your-app.vercel.app`) to **Redirect URLs** and set **Site URL** to the
+> production Vercel URL. Without these, Google sign-in will redirect back to a
+> URL that Supabase hasn't whitelisted.
 
 ### 4 · Run
 
@@ -104,7 +107,7 @@ pebbles/
 │   │   ├── Footer.tsx       # footer
 │   │   ├── Learnmore.tsx    # "Why optimize" info page
 │   │   └── DotBg.tsx        # interactive canvas background
-│   ├── lib/firebase.ts      # Firebase init + auth helpers
+│   ├── lib/supabase.ts     # Supabase init + Google auth helpers
 │   ├── AuthContext.tsx      # auth provider/hook
 │   ├── App.tsx              # routes + layout
 │   └── main.tsx             # entry point

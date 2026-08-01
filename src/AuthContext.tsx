@@ -1,14 +1,9 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import {
-  completeRedirectSignIn,
-  onAuthStateChange,
-  signInWithGoogleRedirect,
-  signOutUser,
-} from './lib/firebase.ts';
-import type { User } from 'firebase/auth';
+import { supabase, toAppUser, signInWithGoogle, signOutUser } from './lib/supabase.ts';
+import type { AppUser } from './lib/supabase.ts';
 
 interface AuthContextType {
-  user: User | null;
+  user: AppUser | null;
   loading: boolean;
   signIn: () => Promise<void>;
   signOut: () => Promise<void>;
@@ -17,47 +12,49 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    //  Finish any in-progress redirect sign-in. On a deployed domain the
-    //  browser may have just returned from Google's account picker with a
-    //  pending credential; calling getRedirectResult() here finalizes that
-    //  round-trip so the app logs the user in. It resolves with null when there
-    //  was no pending redirect (normal landing / returning session), so we
-    //  don't need to branch on the result — the onAuthStateChanged listener
-    //  below is the single source of truth that flips `user`.
-    completeRedirectSignIn().catch((err) => {
-      const code = (err as { code?: string })?.code;
-      console.error('[Pebbles auth] completing redirect sign-in failed:', code, err);
-    });
+    //  Restore any existing session (returning visitor). On a fresh deploy after
+    //  a Google redirect, `detectSessionInUrl` in the Supabase client already
+    //  exchanged the auth code; this getSession() picks up the result.
+    supabase.auth
+      .getSession()
+      .then(({ data }) => {
+        setUser(toAppUser(data.session?.user ?? null));
+      })
+      .catch((err) => {
+        console.error('[Pebbles auth] restoring session failed:', err);
+      })
+      .finally(() => setLoading(false));
 
-    // Listen for auth changes — fires after a popup sign-in, a completed
-    // redirect sign-in, or a returning session. This is the single source of
-    // truth that flips `user` and unblocks the app (loading → false).
-    const unsubscribe = onAuthStateChange((user) => {
-      console.log('[Pebbles auth] auth state changed — user:', user ? user.email : 'signed out');
-      setUser(user);
+    //  Single source of truth for auth changes — fires after a completed Google
+    //  redirect, a session refresh, or a sign-out. Flips `user` accordingly.
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      console.log(
+        '[Pebbles auth] auth state changed — user:',
+        session?.user ? session.user.email : 'signed out'
+      );
+      setUser(toAppUser(session?.user ?? null));
       setLoading(false);
     });
 
-    // Cleanup subscription on unmount
-    return () => unsubscribe();
+    //  Cleanup subscription on unmount
+    return () => subscription.unsubscribe();
   }, []);
 
   const signIn = async () => {
-    //  Always use the redirect flow (on localhost AND deployed domains). We
-    //  deliberately do NOT use the popup flow anywhere: on a deployed domain
-    //  (Vercel) the popup channel is unreliable — third-party cookie / popup
-    //  blocking makes the user complete Google's picker and then come back to
-    //  the app still signed-out. A full-page redirect navigates the top-level
-    //  page to Google and back, so it cannot be blocked. Once the browser
-    //  returns, completeRedirectSignIn() + onAuthStateChanged below restore the
-    //  session. The page navigation below also means this promise resolves
-    //  right away and the caller (AuthModal) is discarded — which is expected.
+    //  Full-page OAuth redirect (no popup) — cannot be blocked by popup/third-
+    //  party cookie blockers, which is the failure mode we hit with popups on a
+    //  Vercel deploy. The browser navigates to Google and back; on return the
+    //  getSession()/onAuthStateChange above restore the session. The navigation
+    //  also means this promise typically resolves right away and the caller
+    //  (AuthModal) is discarded — which is expected.
     console.log('[Pebbles auth] signIn() invoked — using full-page redirect');
-    await signInWithGoogleRedirect();
+    await signInWithGoogle();
   };
 
   const signOut = async () => {

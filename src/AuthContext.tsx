@@ -6,6 +6,7 @@ import {
   signOutUser,
   completeRedirectSignIn,
   isLocalDev,
+  consumeSignInMarker,
 } from './lib/firebase.ts';
 import type { User } from 'firebase/auth';
 
@@ -33,6 +34,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       '[Pebbles auth] page load — search:', window.location.search || '(empty)',
       '| hash:', window.location.hash || '(empty)'
     );
+
+    //  Was a sign-in initiated just before this page load? signInWithRedirect
+    //  navigates away (wiping the console), but the marker survives in
+    //  sessionStorage, so finding it here PROVES the redirect round-trip
+    //  actually started — even though the "signInWithRedirect() called" log is
+    //  gone. Its absence means no sign-in was started before this load.
+    const marker = consumeSignInMarker();
+    if (marker) {
+      const ageMs = Date.now() - marker.ts;
+      console.log(
+        '[Pebbles auth] sign-in marker found on load — method:', marker.method,
+        '| started', ageMs, 'ms ago | from href:', marker.href
+      );
+    } else {
+      console.log('[Pebbles auth] no sign-in marker on load — no sign-in was initiated before this page load.');
+    }
 
     //  Complete any in-progress redirect sign-in (browser returned from Google).
     //  getRedirectResult resolves with the credential if we just came back from

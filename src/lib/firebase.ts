@@ -57,11 +57,44 @@ export const isLocalDev = (): boolean => {
   return host === 'localhost' || host === '127.0.0.1' || host === '[::1]';
 };
 
+//  Sign-in attempt marker. signInWithRedirect navigates the WHOLE page to
+//  Google, which wipes the browser console — so by the time the browser returns
+//  we can no longer see the "signIn() invoked" / "signInWithRedirect() called"
+//  logs that prove a sign-in was started. To survive that navigation we stash a
+//  marker in sessionStorage right before kicking off a sign-in, then read it
+//  back on the next page load. sessionStorage persists across the redirect
+//  round-trip (same tab + same origin) but not across tabs, which is exactly
+//  what we need.
+const SIGN_IN_MARKER_KEY = 'pebbles:signInMarker';
+
+export const recordSignInAttempt = (method: 'popup' | 'redirect'): void => {
+  try {
+    sessionStorage.setItem(
+      SIGN_IN_MARKER_KEY,
+      JSON.stringify({ method, ts: Date.now(), href: window.location.href })
+    );
+  } catch (e) {
+    console.warn('[Pebbles auth] could not record sign-in marker:', e);
+  }
+};
+
+export const consumeSignInMarker = (): { method: string; ts: number; href: string } | null => {
+  try {
+    const raw = sessionStorage.getItem(SIGN_IN_MARKER_KEY);
+    if (!raw) return null;
+    sessionStorage.removeItem(SIGN_IN_MARKER_KEY);
+    return JSON.parse(raw) as { method: string; ts: number; href: string };
+  } catch {
+    return null;
+  }
+};
+
 
 // Sign in with Google via popup. Throws auth/popup-blocked if the browser
 // blocks the popup — callers should fall back to signInWithGoogleRedirect().
 export const signInWithGoogle = async () => {
   console.log('[Pebbles auth] signInWithPopup() called');
+  recordSignInAttempt('popup');
   try {
     const result = await signInWithPopup(auth, googleProvider);
     console.log('[Pebbles auth] popup sign-in succeeded for:', result.user.email);
@@ -77,6 +110,7 @@ export const signInWithGoogle = async () => {
 // Google, then returns). Used when the popup is blocked by the browser.
 export const signInWithGoogleRedirect = async () => {
   console.log('[Pebbles auth] signInWithRedirect() called — the page should now navigate to Google…');
+  recordSignInAttempt('redirect');
   try {
     await signInWithRedirect(auth, googleProvider);
   } catch (error) {

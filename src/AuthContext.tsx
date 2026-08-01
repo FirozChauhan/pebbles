@@ -1,11 +1,18 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { supabase, toAppUser, signInWithGitHub, signOutUser } from './lib/supabase.ts';
-import type { AppUser } from './lib/supabase.ts';
+import {
+  supabase,
+  toAppUser,
+  signInWithEmail,
+  signUpWithEmail,
+  signOutUser,
+} from './lib/supabase.ts';
+import type { AppUser, AuthResult } from './lib/supabase.ts';
 
 interface AuthContextType {
   user: AppUser | null;
   loading: boolean;
-  signIn: () => Promise<void>;
+  signIn: (email: string, password: string) => Promise<AuthResult>;
+  signUp: (email: string, password: string) => Promise<AuthResult>;
   signOut: () => Promise<void>;
 }
 
@@ -16,9 +23,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    //  Restore any existing session (returning visitor). On a fresh deploy after
-    //  an OAuth redirect, `detectSessionInUrl` in the Supabase client already
-    //  exchanged the auth code; this getSession() picks up the result.
+    //  Restore any existing session for a returning visitor.
     supabase.auth
       .getSession()
       .then(({ data }) => {
@@ -29,8 +34,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       })
       .finally(() => setLoading(false));
 
-    //  Single source of truth for auth changes — fires after a completed OAuth
-    //  redirect, a session refresh, or a sign-out. Flips `user` accordingly.
+    //  Single source of truth for auth changes — fires after a sign-in, sign-up,
+    //  email confirmation, session refresh, or sign-out. Flips `user` accordingly.
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -46,23 +51,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => subscription.unsubscribe();
   }, []);
 
-  const signIn = async () => {
-    //  Full-page OAuth redirect (no popup) — cannot be blocked by popup/third-
-    //  party cookie blockers, which is the failure mode we hit with popups on a
-    //  Vercel deploy. The browser navigates to GitHub and back; on return the
-    //  getSession()/onAuthStateChange above restore the session. The navigation
-    //  also means this promise typically resolves right away and the caller
-    //  (AuthModal) is discarded — which is expected.
-    console.log('[Pebbles auth] signIn() invoked — using full-page redirect');
-    await signInWithGitHub();
-  };
+  const signIn = async (email: string, password: string): Promise<AuthResult> =>
+    signInWithEmail(email, password);
 
-  const signOut = async () => {
+  const signUp = async (email: string, password: string): Promise<AuthResult> =>
+    signUpWithEmail(email, password);
+
+  const signOut = async (): Promise<void> => {
     await signOutUser();
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, loading, signIn, signUp, signOut }}>
       {children}
     </AuthContext.Provider>
   );

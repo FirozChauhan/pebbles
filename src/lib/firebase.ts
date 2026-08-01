@@ -3,7 +3,6 @@ import type { FirebaseOptions } from 'firebase/app';
 import {
   getAuth,
   GoogleAuthProvider,
-  signInWithPopup,
   signInWithRedirect,
   getRedirectResult,
   signOut,
@@ -45,36 +44,11 @@ console.log(
 
 export const googleProvider = new GoogleAuthProvider();
 
-//  True when running on a local dev server. On *deployed* domains (Vercel,
-//  custom domains, …) the popup sign-in flow is unreliable: browsers block the
-//  third-party cookies / cross-origin popup channel it relies on, so the user
-//  can complete Google's account picker, the popup closes, yet the app still
-//  reports "signed out". The redirect flow runs in the top-level page context
-//  and is the robust choice for SPAs in production. We keep the nicer popup UX
-//  for local dev only.
-export const isLocalDev = (): boolean => {
-  const host = window.location.hostname;
-  return host === 'localhost' || host === '127.0.0.1' || host === '[::1]';
-};
-
-// Sign in with Google via popup (kept for local dev UX). Throws an explicit
-// Firebase error code (e.g. auth/unauthorized-domain) on failure.
-export const signInWithGoogle = async (): Promise<User> => {
-  console.log('[Pebbles auth] signInWithPopup() called');
-  try {
-    const result = await signInWithPopup(auth, googleProvider);
-    console.log('[Pebbles auth] popup sign-in succeeded for:', result.user.email);
-    return result.user;
-  } catch (error) {
-    const code = (error as { code?: string })?.code;
-    console.error('[Pebbles auth] signInWithPopup threw:', code, error);
-    throw error;
-  }
-};
-
-//  Sign in with Google via full-page redirect. This is what we use on deployed
-//  domains: it navigates the top-level page to Google and back, so it is not
-//  affected by popup blockers or third-party cookie blocking. The resulting
+//  Sign in with Google via full-page redirect. We use this flow everywhere
+//  (local dev AND deployed domains) because it runs in the top-level page
+//  context and is therefore never affected by popup blockers or third-party
+//  cookie blocking — the two things that cause the classic "sign-in completes
+//  at Google but the app stays signed-out" failure on Vercel. The resulting
 //  session is restored by completeRedirectSignIn() on the next page load.
 export const signInWithGoogleRedirect = async (): Promise<void> => {
   console.log('[Pebbles auth] signInWithRedirect() called');

@@ -1,9 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import {
   completeRedirectSignIn,
-  isLocalDev,
   onAuthStateChange,
-  signInWithGoogle,
   signInWithGoogleRedirect,
   signOutUser,
 } from './lib/firebase.ts';
@@ -49,18 +47,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const signIn = async () => {
-    //  Popup on localhost (nicer UX); redirect on deployed domains, where the
-    //  popup channel is unreliable (third-party-cookie blocking makes it fail
-    //  silently — see isLocalDev in lib/firebase.ts). On production this
-    //  navigates the page to Google and back; completeRedirectSignIn() +
-    //  onAuthStateChanged restore the session when the browser returns.
-    const local = isLocalDev();
-    console.log('[Pebbles auth] signIn() invoked — isLocalDev:', local, '→ using', local ? 'popup' : 'redirect');
-    if (local) {
-      await signInWithGoogle();
-    } else {
-      await signInWithGoogleRedirect();
-    }
+    //  Always use the redirect flow (on localhost AND deployed domains). We
+    //  deliberately do NOT use the popup flow anywhere: on a deployed domain
+    //  (Vercel) the popup channel is unreliable — third-party cookie / popup
+    //  blocking makes the user complete Google's picker and then come back to
+    //  the app still signed-out. A full-page redirect navigates the top-level
+    //  page to Google and back, so it cannot be blocked. Once the browser
+    //  returns, completeRedirectSignIn() + onAuthStateChanged below restore the
+    //  session. The page navigation below also means this promise resolves
+    //  right away and the caller (AuthModal) is discarded — which is expected.
+    console.log('[Pebbles auth] signIn() invoked — using full-page redirect');
+    await signInWithGoogleRedirect();
   };
 
   const signOut = async () => {

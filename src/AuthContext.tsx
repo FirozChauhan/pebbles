@@ -16,6 +16,10 @@ interface AuthContextType {
   signIn: () => Promise<void>;
   signInRedirect: () => Promise<void>;
   signOut: () => Promise<void>;
+  //  Last auth error that should be surfaced to the user (e.g. a redirect
+  //  sign-in that came back empty, or auth/unauthorized-domain). null = none.
+  authError: string | null;
+  clearAuthError: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -23,6 +27,9 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [authError, setAuthError] = useState<string | null>(null);
+
+  const clearAuthError = () => setAuthError(null);
 
   useEffect(() => {
     //  Log the full URL state on load. After a redirect sign-in, Firebase
@@ -55,12 +62,48 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     //  getRedirectResult resolves with the credential if we just came back from
     //  a redirect sign-in, or null otherwise. We log it so the round-trip is
     //  visible in the console when debugging deploys.
+    //
+    //  IMPORTANT: after a redirect, the page reloads fresh and the AuthModal is
+    //  CLOSED, so an error here would otherwise only ever appear in the console
+    //  — the user would just see the app land back on the landing page. So when
+    //  a redirect was started (marker present) but came back with no credential,
+    //  or getRedirectResult throws, we surface a user-visible authError banner.
+    const startedRedirect = marker?.method === 'redirect';
     completeRedirectSignIn()
       .then((u) => {
-        if (u) console.log('[Pebbles auth] redirect sign-in completed for:', u.email);
+        if (u) {
+          console.log('[Pebbles auth] redirect sign-in completed for:', u.email);
+          return;
+        }
+        //  No credential returned. If a redirect was actually started just
+        //  before this load, that's a FAILED round-trip — almost always because
+        //  the deployed hostname isn't in Firebase's Authorized domains list
+        //  (localhost is auto-authorized, which is why it works locally but not
+        //  on Vercel). Surface it so the user isn't left staring at the landing
+        //  page with no explanation.
+        if (startedRedirect) {
+          const host = window.location.hostname;
+          console.error(
+            '[Pebbles auth] redirect round-trip FAILED — sign-in was started but no credential came back. ' +
+            'Almost certainly an unauthorized-domain issue: add "' + host + '" to Firebase → Authentication → Settings → Authorized domains.'
+          );
+          setAuthError(
+            'Google sign-in didn\'t complete. This is almost always because "' + host +
+            '" isn\'t in Firebase\'s authorized domains. Add it in Firebase Console → Authentication → Settings → Authorized domains, then try again.'
+          );
+        }
       })
       .catch((err) => {
-        console.error('[Pebbles auth] redirect sign-in failed:', err);
+        const code = (err as { code?: string })?.code;
+        console.error('[Pebbles auth] redirect sign-in failed:', code, err);
+        const host = window.location.hostname;
+        let msg: string;
+        if (code === 'auth/unauthorized-domain' || code === 'auth/operation-not-supported-in-this-environment') {
+          msg = '"' + host + '" isn\'t authorized for Google sign-in. Add it in Firebase Console → Authentication → Settings → Authorized domains, then try again.';
+        } else {
+          msg = (err instanceof Error ? err.message : String(err)) || 'Google sign-in failed. Please try again.';
+        }
+        setAuthError(msg);
       });
 
     // Listen for auth changes — fires after popup, redirect, or a returning
@@ -100,7 +143,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, signInRedirect, signOut }}>
+    <AuthContext.Provider value={{ user, loading, signIn, signInRedirect, signOut, authError, clearAuthError }}>
       {children}
     </AuthContext.Provider>
   );

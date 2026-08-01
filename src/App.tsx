@@ -11,7 +11,7 @@ import { type JSX } from "react/jsx-runtime";
 import { Routes, Route } from "react-router-dom";
 
 const App = (): JSX.Element => {
-  const { user, loading, authError, clearAuthError } = useAuth();
+  const { user, loading, authError, clearAuthError, signInPopup } = useAuth();
   const [showAuth, setShowAuth] = useState(false);
 
   //  Auth is still resolving — show a brief splash instead of flashing content
@@ -41,16 +41,23 @@ const App = (): JSX.Element => {
             <svg className="mt-0.5 h-5 w-5 flex-shrink-0 text-red-400" viewBox="0 0 24 24" fill="none" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            <p className="flex-1 text-sm leading-relaxed text-red-200">{authError}</p>
-            <button
-              onClick={clearAuthError}
-              aria-label="Dismiss"
-              className="flex-shrink-0 rounded-md p-1 text-red-300/70 hover:bg-white/10 hover:text-red-200 smooth"
-            >
-              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
+            <div className="flex-1">
+              <p className="text-sm leading-relaxed text-red-200">{authError}</p>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <button
+                  onClick={signInPopup}
+                  className="rounded-md bg-red-500/20 px-3 py-1 text-xs font-medium text-red-100 hover:bg-red-500/30 smooth"
+                >
+                  Retry with popup
+                </button>
+                <button
+                  onClick={clearAuthError}
+                  className="rounded-md px-3 py-1 text-xs font-medium text-red-300/70 hover:bg-white/10 hover:text-red-200 smooth"
+                >
+                  Dismiss
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

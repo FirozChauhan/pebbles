@@ -20,6 +20,11 @@ interface AuthContextType {
   //  sign-in that came back empty, or auth/unauthorized-domain). null = none.
   authError: string | null;
   clearAuthError: () => void;
+  //  Force a popup sign-in, bypassing the redirect path. The redirect flow
+  //  returns null *silently* when it fails (no error code), but a popup throws
+  //  an explicit Firebase error code (e.g. auth/unauthorized-domain) — so this
+  //  is both a fallback AND a definitive diagnostic for WHY sign-in is failing.
+  signInPopup: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -138,12 +143,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await signInWithGoogleRedirect();
   };
 
+  //  Force a popup sign-in (bypassing the redirect path). Used as a fallback
+  //  AND a diagnostic when the redirect round-trip comes back empty: a popup
+  //  throws explicit Firebase error codes (e.g. auth/unauthorized-domain),
+  //  which pinpoint the cause, whereas an empty redirect just returns null.
+  const signInPopup = async () => {
+    clearAuthError();
+    try {
+      await signInWithGoogle();
+    } catch (err) {
+      const code = (err as { code?: string })?.code;
+      console.error('[Pebbles auth] popup sign-in failed:', code, err);
+      const host = window.location.hostname;
+      let msg: string;
+      if (code === 'auth/unauthorized-domain' || code === 'auth/operation-not-supported-in-this-environment') {
+        msg = '"' + host + '" isn\'t authorized for Google sign-in (code: ' + code + '). Add it in Firebase Console → Authentication → Settings → Authorized domains, then retry.';
+      } else {
+        msg = code ? 'Sign-in failed (' + code + ').' : 'Sign-in failed. Please try again.';
+      }
+      setAuthError(msg);
+    }
+  };
+
   const signOut = async () => {
     await signOutUser();
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, signInRedirect, signOut, authError, clearAuthError }}>
+    <AuthContext.Provider value={{ user, loading, signIn, signInRedirect, signOut, authError, clearAuthError, signInPopup }}>
       {children}
     </AuthContext.Provider>
   );

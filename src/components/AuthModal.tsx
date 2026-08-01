@@ -67,15 +67,38 @@ const AuthModal = ({ open, onClose }: AuthModalProps): JSX.Element | null => {
       await signIn();
       onClose();
     } catch (err) {
-      //  Popup blocked by the browser — fall back to the redirect flow,
-      //  which navigates the current tab to Google (no popup needed).
+      //  Popup sign-in failed. Log the exact Firebase code so we can diagnose,
+      //  then either fall back to the redirect flow or show a clear message.
       const code = (err as { code?: string })?.code;
-      if (code === "auth/popup-blocked" || code === "auth/cancelled-popup-request") {
-        setRedirecting(true);
-        await signInRedirect();
+      console.error('[Pebbles auth] popup sign-in failed:', code, err);
+
+      //  User closed the popup themselves — don't auto-redirect, just let them retry.
+      if (code === "auth/popup-closed-by-user") {
+        setError(friendlyAuthMessage(code));
         return;
       }
-      setError(friendlyAuthMessage(code, err instanceof Error ? err.message : undefined));
+
+      //  Domain not authorized for Google sign-in. Neither popup NOR redirect
+      //  will work until the deployed domain is added in the Firebase Console
+      //  (Authentication → Settings → Authorized domains). Show a clear message.
+      if (code === "auth/unauthorized-domain" || code === "auth/operation-not-supported-in-this-environment") {
+        setError(friendlyAuthMessage(code));
+        return;
+      }
+
+      //  For everything else (popup blocked, third-party-cookie blocking on
+      //  deployed domains, cancelled-popup-request, network blips, …) fall back
+      //  to the redirect flow, which runs in the top-level page context and is
+      //  far more reliable on a production domain.
+      setRedirecting(true);
+      try {
+        await signInRedirect();
+      } catch (redirectErr) {
+        const rCode = (redirectErr as { code?: string })?.code;
+        console.error('[Pebbles auth] redirect sign-in failed:', rCode, redirectErr);
+        setRedirecting(false);
+        setError(friendlyAuthMessage(rCode, redirectErr instanceof Error ? redirectErr.message : undefined));
+      }
     } finally {
       setBusy(false);
     }
@@ -136,7 +159,11 @@ const AuthModal = ({ open, onClose }: AuthModalProps): JSX.Element | null => {
               : "Continue with Google"}
         </button>
 
-        {error && <p className="mt-3 text-red-400 text-sm">{error}</p>}
+        {error && (
+          <div className="mt-4 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-left">
+            <p className="text-red-300 text-sm leading-relaxed">{error}</p>
+          </div>
+        )}
 
         <p className="text-gray-500 text-[11px] mt-5 leading-relaxed">
           By signing in you agree to use Pebbles only for personal,

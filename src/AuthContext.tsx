@@ -23,13 +23,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    //  Complete any in-progress redirect sign-in (browser returned from Google)
-    completeRedirectSignIn().catch((err) => {
-      console.error('Redirect sign-in failed:', err);
-    });
+    //  Complete any in-progress redirect sign-in (browser returned from Google).
+    //  getRedirectResult resolves with the credential if we just came back from
+    //  a redirect sign-in, or null otherwise. We log it so the round-trip is
+    //  visible in the console when debugging deploys.
+    completeRedirectSignIn()
+      .then((u) => {
+        if (u) console.log('[Pebbles auth] redirect sign-in completed for:', u.email);
+      })
+      .catch((err) => {
+        console.error('[Pebbles auth] redirect sign-in failed:', err);
+      });
 
-    // Listen for auth changes
+    // Listen for auth changes — fires after popup, redirect, or a returning
+    // session. This is the single source of truth that flips `user` and unblocks
+    // the app (loading → false).
     const unsubscribe = onAuthStateChange((user) => {
+      console.log('[Pebbles auth] auth state changed — user:', user ? user.email : 'signed out');
       setUser(user);
       setLoading(false);
     });

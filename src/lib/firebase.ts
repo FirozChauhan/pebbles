@@ -4,6 +4,8 @@ import {
   getAuth,
   GoogleAuthProvider,
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   signOut,
   onAuthStateChanged,
   type User,
@@ -43,9 +45,21 @@ console.log(
 
 export const googleProvider = new GoogleAuthProvider();
 
-// Sign in with Google via popup. Throws auth/popup-blocked if the browser
-// blocks the popup — callers should surface a friendly error to the user.
-export const signInWithGoogle = async () => {
+//  True when running on a local dev server. On *deployed* domains (Vercel,
+//  custom domains, …) the popup sign-in flow is unreliable: browsers block the
+//  third-party cookies / cross-origin popup channel it relies on, so the user
+//  can complete Google's account picker, the popup closes, yet the app still
+//  reports "signed out". The redirect flow runs in the top-level page context
+//  and is the robust choice for SPAs in production. We keep the nicer popup UX
+//  for local dev only.
+export const isLocalDev = (): boolean => {
+  const host = window.location.hostname;
+  return host === 'localhost' || host === '127.0.0.1' || host === '[::1]';
+};
+
+// Sign in with Google via popup (kept for local dev UX). Throws an explicit
+// Firebase error code (e.g. auth/unauthorized-domain) on failure.
+export const signInWithGoogle = async (): Promise<User> => {
   console.log('[Pebbles auth] signInWithPopup() called');
   try {
     const result = await signInWithPopup(auth, googleProvider);
@@ -54,6 +68,41 @@ export const signInWithGoogle = async () => {
   } catch (error) {
     const code = (error as { code?: string })?.code;
     console.error('[Pebbles auth] signInWithPopup threw:', code, error);
+    throw error;
+  }
+};
+
+//  Sign in with Google via full-page redirect. This is what we use on deployed
+//  domains: it navigates the top-level page to Google and back, so it is not
+//  affected by popup blockers or third-party cookie blocking. The resulting
+//  session is restored by completeRedirectSignIn() on the next page load.
+export const signInWithGoogleRedirect = async (): Promise<void> => {
+  console.log('[Pebbles auth] signInWithRedirect() called');
+  try {
+    await signInWithRedirect(auth, googleProvider);
+  } catch (error) {
+    const code = (error as { code?: string })?.code;
+    console.error('[Pebbles auth] signInWithRedirect threw:', code, error);
+    throw error;
+  }
+};
+
+//  Called once on app boot (see AuthContext) to finish any in-progress redirect
+//  sign-in — i.e. when the browser has just returned from Google's account
+//  picker. Resolves with the signed-in user when a round-trip completed, or
+//  null when there was nothing pending.
+export const completeRedirectSignIn = async (): Promise<User | null> => {
+  console.log('[Pebbles auth] getRedirectResult() called');
+  try {
+    const result = await getRedirectResult(auth);
+    console.log(
+      '[Pebbles auth] redirect result — user:',
+      result?.user ? result.user.email : '(none)'
+    );
+    return result?.user ?? null;
+  } catch (error) {
+    const code = (error as { code?: string })?.code;
+    console.error('[Pebbles auth] getRedirectResult threw:', code, error);
     throw error;
   }
 };

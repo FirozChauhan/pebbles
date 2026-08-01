@@ -1,11 +1,18 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { onAuthStateChange, signInWithGoogle, signOutUser } from './lib/firebase.ts';
+import {
+  onAuthStateChange,
+  signInWithGoogle,
+  signInWithGoogleRedirect,
+  signOutUser,
+  completeRedirectSignIn,
+} from './lib/firebase.ts';
 import type { User } from 'firebase/auth';
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
   signIn: () => Promise<void>;
+  signInRedirect: () => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -16,6 +23,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    //  Complete any in-progress redirect sign-in (browser returned from Google)
+    completeRedirectSignIn().catch((err) => {
+      console.error('Redirect sign-in failed:', err);
+    });
+
     // Listen for auth changes
     const unsubscribe = onAuthStateChange((user) => {
       setUser(user);
@@ -30,12 +42,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await signInWithGoogle();
   };
 
+  const signInRedirect = async () => {
+    await signInWithGoogleRedirect();
+  };
+
   const signOut = async () => {
     await signOutUser();
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, loading, signIn, signInRedirect, signOut }}>
       {children}
     </AuthContext.Provider>
   );

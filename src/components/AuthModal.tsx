@@ -31,8 +31,9 @@ interface AuthModalProps {
 }
 
 const AuthModal = ({ open, onClose }: AuthModalProps): JSX.Element | null => {
-  const { signIn } = useAuth();
+  const { signIn, signInRedirect } = useAuth();
   const [busy, setBusy] = useState(false);
+  const [redirecting, setRedirecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   if (!open) return null;
@@ -44,6 +45,14 @@ const AuthModal = ({ open, onClose }: AuthModalProps): JSX.Element | null => {
       await signIn();
       onClose();
     } catch (err) {
+      //  Popup blocked by the browser — fall back to the redirect flow,
+      //  which navigates the current tab to Google (no popup needed).
+      const code = (err as { code?: string })?.code;
+      if (code === "auth/popup-blocked" || code === "auth/cancelled-popup-request") {
+        setRedirecting(true);
+        await signInRedirect();
+        return;
+      }
       setError(
         err instanceof Error
           ? err.message
@@ -102,7 +111,11 @@ const AuthModal = ({ open, onClose }: AuthModalProps): JSX.Element | null => {
           ) : (
             <GoogleIcon />
           )}
-          {busy ? "Connecting to Google…" : "Continue with Google"}
+          {redirecting
+            ? "Redirecting to Google…"
+            : busy
+              ? "Connecting to Google…"
+              : "Continue with Google"}
         </button>
 
         {error && <p className="mt-3 text-red-400 text-sm">{error}</p>}

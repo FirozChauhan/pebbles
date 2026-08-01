@@ -25,6 +25,28 @@ const GoogleIcon = () => (
   </svg>
 );
 
+//  Map Firebase auth error codes to short, actionable messages so the user
+//  understands *why* sign-in failed instead of seeing a raw Firebase string.
+//  The most common one on a fresh Vercel deploy is "auth/unauthorized-domain",
+//  which happens when the deployed domain hasn't been added to Firebase's
+//  Authorized domains list (Firebase Console → Authentication → Settings).
+const friendlyAuthMessage = (code?: string, fallback?: string): string => {
+  switch (code) {
+    case "auth/unauthorized-domain":
+    case "auth/operation-not-supported-in-this-environment":
+      return "This site's domain isn't authorized for Google sign-in. Add your Vercel URL to Firebase → Authentication → Settings → Authorized domains, then try again.";
+    case "auth/network-request-failed":
+      return "Couldn't reach Google. Check your connection and try again.";
+    case "auth/popup-closed-by-user":
+      return "Sign-in was cancelled. Try again whenever you're ready.";
+    case "auth/cancelled-popup-request":
+    case "auth/popup-blocked":
+      return "The sign-in popup was blocked. We'll retry using a redirect.";
+    default:
+      return fallback ?? "Couldn't sign in. Please try again.";
+  }
+};
+
 interface AuthModalProps {
   open: boolean;
   onClose: () => void;
@@ -53,11 +75,7 @@ const AuthModal = ({ open, onClose }: AuthModalProps): JSX.Element | null => {
         await signInRedirect();
         return;
       }
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Couldn't sign in. Please try again."
-      );
+      setError(friendlyAuthMessage(code, err instanceof Error ? err.message : undefined));
     } finally {
       setBusy(false);
     }

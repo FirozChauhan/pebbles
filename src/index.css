@@ -1,0 +1,130 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fontsource-variable/geist";
+
+body {
+  background-color: #100f15;
+}
+
+/* ---- Mobile friendly global fixes ---- */
+html,
+body {
+  /* Prevent horizontal scrollbars from fixed layers / wide content on small screens */
+  overflow-x: hidden;
+  /* Remove the grey flash when tapping interactive elements (Android) */
+  -webkit-tap-highlight-color: transparent;
+  /* Stop iOS from auto-adjusting font size on orientation change */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+button,
+[role="button"],
+a,
+input,
+textarea,
+select {
+  /* Remove the 300ms double-tap zoom delay on mobile */
+  touch-action: manipulation;
+}
+
+
+@theme {
+  --color-txt: #f7f7f7;
+  --color-prl: #120f16;
+  --color-prd: #0A0611;
+  --font-logo: "Zen Dots", sans-serif;
+  --font-hero: "Stack Sans Notch", sans-serif;
+}
+
+.smooth {
+  transition: all 0.3s ease-in-out;
+}
+
+@keyframes fadeSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-page-in {
+  animation: fadeSlideUp 2s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* ---- Loading / progress animations ---- */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.animate-fade-in {
+  animation: fadeIn 0.25s ease-out forwards;
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.94) translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+.animate-scale-in {
+  animation: scaleIn 0.3s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes floaty {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-7px);
+  }
+}
+.animate-floaty {
+  animation: floaty 1.4s ease-in-out infinite;
+}
+
+/* Indeterminate progress bar sweep */
+@keyframes sweep {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(320%);
+  }
+}
+.loading-sweep {
+  animation: sweep 1.1s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+.animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.04) 25%,
+    rgba(255, 255, 255, 0.1) 50%,
+    rgba(255, 255, 255, 0.04) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+}

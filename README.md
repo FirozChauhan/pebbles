@@ -25,7 +25,7 @@ Upload your resume, pick a target role, and let AI rewrite it into an **ATS-opti
 |---|---|
 | 📄 | **PDF In → PDF Out** — upload your resume, get an optimized PDF back, auto-downloaded |
 | 🎯 | **Targeted or Simple** — enter a job role for full ATS tailoring, or leave blank for general optimization |
-| 🔐 | **Google Auth** — sign in via a custom in-app modal (Supabase) |
+| 🔐 | **GitHub Auth** — sign in via a custom in-app modal (Supabase) |
 | 📱 | **Fully Responsive** — mobile-first, single-page tool on phones; full desktop experience on larger screens |
 | ✨ | **Interactive Dot Background** — canvas-based, reacts to cursor & touch |
 | 🎨 | **Template Selector** — pick from resume templates (desktop) |
@@ -37,7 +37,7 @@ Upload your resume, pick a target role, and let AI rewrite it into an **ATS-opti
 
 - **React 19** + **TypeScript** + **Vite 8**
 - **Tailwind CSS v4** for styling
-- **Supabase Auth** (Google sign-in, full-page redirect flow — Vercel friendly)
+- **Supabase Auth** (GitHub sign-in, full-page redirect flow — Vercel friendly)
 - **React Router v7** for routing
 - **shadcn/ui** components + **lucide-react** icons
 - **Motion** for animations
@@ -75,11 +75,11 @@ cp .env.example .env
 
 > ⚠️ **Never commit `.env`** — it's gitignored. Only `.env.example` is shared.
 
-> 🔑 **One-time Supabase setup for Google sign-in:** In Supabase → Authentication →
-> Providers → Google, enable the provider. Then in **Authentication → URL
+> 🔑 **One-time Supabase setup for GitHub sign-in:** In Supabase → Authentication →
+> Providers → GitHub, enable the provider. Then in **Authentication → URL
 > Configuration**, add your app's URLs (e.g. `http://localhost:5173`,
 > `https://your-app.vercel.app`) to **Redirect URLs** and set **Site URL** to the
-> production Vercel URL. Without these, Google sign-in will redirect back to a
+> production Vercel URL. Without these, GitHub sign-in will redirect back to a
 > URL that Supabase hasn't whitelisted.
 
 ### 4 · Run
@@ -100,14 +100,14 @@ pebbles/
 ├── public/                  # static assets (favicon, template images)
 ├── src/
 │   ├── components/
-│   │   ├── AuthModal.tsx    # custom Google sign-in modal
+│   │   ├── AuthModal.tsx    # custom GitHub sign-in modal
 │   │   ├── Content.tsx      # landing hero (signed-out)
 │   │   ├── Pebble.tsx       # main optimizer tool (signed-in)
 │   │   ├── Navbar.tsx       # top nav with auth state
 │   │   ├── Footer.tsx       # footer
 │   │   ├── Learnmore.tsx    # "Why optimize" info page
 │   │   └── DotBg.tsx        # interactive canvas background
-│   ├── lib/supabase.ts     # Supabase init + Google auth helpers
+│   ├── lib/supabase.ts     # Supabase init + GitHub auth helpers
 │   ├── AuthContext.tsx      # auth provider/hook
 │   ├── App.tsx              # routes + layout
 │   └── main.tsx             # entry point

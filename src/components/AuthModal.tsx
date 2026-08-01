@@ -3,25 +3,11 @@ import { type JSX } from "react/jsx-runtime";
 import { useAuth } from "../AuthContext.tsx";
 import { Pebble } from "../assets/Icons.tsx";
 
-//  Official multicolor Google "G" logo
-const GoogleIcon = () => (
-  <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
-    <path
-      fill="#4285F4"
-      d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.27-4.74 3.27-8.1z"
-    />
-    <path
-      fill="#34A853"
-      d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-    />
-    <path
-      fill="#FBBC05"
-      d="M5.84 14.1c-.22-.66-.35-1.36-.35-2.1s.13-1.44.35-2.1V7.06H2.18A10.97 10.97 0 0 0 1 12c0 1.92.51 3.71 1.18 4.94l3.66-2.84z"
-    />
-    <path
-      fill="#EA4335"
-      d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-    />
+//  GitHub "octocat" mark — single-color, inherits currentColor so it adapts to
+//  the white button it sits on.
+const GitHubIcon = () => (
+  <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">
+    <path d="M12 .5C5.37.5 0 5.78 0 12.29c0 5.21 3.44 9.63 8.21 11.19.6.11.82-.25.82-.57 0-.28-.01-1.03-.02-2.01-3.34.71-4.04-1.59-4.04-1.59-.55-1.37-1.34-1.73-1.34-1.73-1.09-.73.08-.72.08-.72 1.2.08 1.84 1.22 1.84 1.22 1.07 1.8 2.81 1.28 3.5.98.11-.76.42-1.28.76-1.58-2.67-.3-5.47-1.31-5.47-5.84 0-1.29.47-2.35 1.24-3.18-.13-.3-.54-1.51.11-3.15 0 0 1.01-.32 3.3 1.21.96-.26 1.98-.39 3-.4 1.02 0 2.05.14 3 .4 2.28-1.53 3.29-1.21 3.29-1.21.65 1.64.24 2.85.12 3.15.77.83 1.23 1.89 1.23 3.18 0 4.54-2.81 5.53-5.49 5.83.43.36.81 1.09.81 2.2 0 1.59-.01 2.87-.01 3.26 0 .32.21.69.82.57C20.56 21.92 24 17.5 24 12.29 24 5.78 18.63.5 12 .5z" />
   </svg>
 );
 
@@ -34,7 +20,7 @@ const friendlyAuthMessage = (err: unknown): string => {
   const message = err instanceof Error ? err.message : String(err ?? '');
 
   if (/unauthorized|redirect.*not.*allow|invalid.*redirect/i.test(message)) {
-    return "This site's URL isn't whitelisted for Google sign-in yet. Add your Vercel domain to Supabase → Authentication → URL Configuration → Redirect URLs, then try again.";
+    return "This site's URL isn't whitelisted for GitHub sign-in yet. Add your Vercel domain to Supabase → Authentication → URL Configuration → Redirect URLs, then try again.";
   }
   if (/network|fetch|failed to fetch|timed out/i.test(message)) {
     return "Couldn't reach the authentication service. Check your connection and try again.";
@@ -58,12 +44,12 @@ const AuthModal = ({ open, onClose }: AuthModalProps): JSX.Element | null => {
 
   if (!open) return null;
 
-  const handleGoogle = async () => {
+  const handleGitHub = async () => {
     setBusy(true);
     setError(null);
 
     try {
-      //  signIn() starts a full-page Google redirect. For most flows the page
+      //  signIn() starts a full-page GitHub redirect. For most flows the page
       //  navigates away immediately, but any synchronous/config error is caught
       //  here and shown in the modal with a friendly, actionable message.
       await signIn();
@@ -115,16 +101,16 @@ const AuthModal = ({ open, onClose }: AuthModalProps): JSX.Element | null => {
         </p>
 
         <button
-          onClick={handleGoogle}
+          onClick={handleGitHub}
           disabled={busy}
           className="flex items-center justify-center gap-3 w-full bg-white text-black font-medium py-3 min-h-12 rounded-xl hover:cursor-pointer smooth hover:opacity-90 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
         >
           {busy ? (
             <span className="w-4 h-4 rounded-full border-2 border-black/20 border-t-black animate-spin" />
           ) : (
-            <GoogleIcon />
+            <GitHubIcon />
           )}
-          {busy ? "Connecting to Google…" : "Continue with Google"}
+          {busy ? "Connecting to GitHub…" : "Continue with GitHub"}
         </button>
 
         {error && (

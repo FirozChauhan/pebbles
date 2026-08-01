@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { supabase, toAppUser, signInWithGoogle, signOutUser } from './lib/supabase.ts';
+import { supabase, toAppUser, signInWithGitHub, signOutUser } from './lib/supabase.ts';
 import type { AppUser } from './lib/supabase.ts';
 
 interface AuthContextType {
@@ -17,7 +17,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     //  Restore any existing session (returning visitor). On a fresh deploy after
-    //  a Google redirect, `detectSessionInUrl` in the Supabase client already
+    //  an OAuth redirect, `detectSessionInUrl` in the Supabase client already
     //  exchanged the auth code; this getSession() picks up the result.
     supabase.auth
       .getSession()
@@ -29,7 +29,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       })
       .finally(() => setLoading(false));
 
-    //  Single source of truth for auth changes — fires after a completed Google
+    //  Single source of truth for auth changes — fires after a completed OAuth
     //  redirect, a session refresh, or a sign-out. Flips `user` accordingly.
     const {
       data: { subscription },
@@ -49,12 +49,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signIn = async () => {
     //  Full-page OAuth redirect (no popup) — cannot be blocked by popup/third-
     //  party cookie blockers, which is the failure mode we hit with popups on a
-    //  Vercel deploy. The browser navigates to Google and back; on return the
+    //  Vercel deploy. The browser navigates to GitHub and back; on return the
     //  getSession()/onAuthStateChange above restore the session. The navigation
     //  also means this promise typically resolves right away and the caller
     //  (AuthModal) is discarded — which is expected.
     console.log('[Pebbles auth] signIn() invoked — using full-page redirect');
-    await signInWithGoogle();
+    await signInWithGitHub();
   };
 
   const signOut = async () => {

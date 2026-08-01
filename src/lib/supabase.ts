@@ -15,22 +15,29 @@ if (!supabaseUrl || !supabaseAnonKey) {
   );
 }
 
-//  auth options tuned for a Vercel (static/CDN) deployment:
-//   - flowType 'pkce'  : uses the PKCE flow so no auth code / refresh token is
-//                        stored server-side — this is the recommended flow for
-//                        frontend-only apps and works reliably on Vercel.
-//   - persistSession   : keeps the user signed in across visits (localStorage).
-//   - autoRefreshToken : quietly refreshes the access token in the background.
-//   - detectSessionInUrl: parses the auth code after Google redirects back.
+//  Auth options tuned for a Vercel (static/CDN) deployment:
 //   - We deliberately do NOT use a popup anywhere — on a deployed domain popup
 //     channels get blocked by third-party cookie / popup blockers. A full-page
-//     redirect navigates the top-level page to Google and back, so it cannot be
+//     redirect navigates the top-level page to GitHub and back, so it cannot be
 //     blocked, which is exactly what we want on Vercel.
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    flowType: 'pkce',
+    //  'implicit' flow is deliberately used (NOT 'pkce'). PKCE relies on a
+    //  `code_verifier` stored in localStorage surviving the OAuth provider redirect and
+    //  matching on return — on CDN/static hosts like Vercel that verifier can
+    //  be missing/mismatched (partitioned or blocked storage, extensions,
+    //  privacy modes), which makes the code exchange silently fail and the
+    //  user land back on the app signed-OUT. The implicit flow instead returns
+    //  the access/refresh tokens directly in the URL fragment, so there is no
+    //  dependency on a persisted verifier — the session is picked up reliably
+    //  on every return. This is the battle-tested flow for client-only SPAs.
+    flowType: 'implicit',
+    //  Keeps the user signed in across visits (localStorage session storage).
     persistSession: true,
+    //  Quietly refreshes the access token in the background so sessions don't
+    //  unexpectedly die mid-use.
     autoRefreshToken: true,
+    //  Parses the tokens out of the URL after the OAuth provider redirects back here.
     detectSessionInUrl: true,
   },
 });
@@ -58,24 +65,28 @@ export const toAppUser = (u: SupabaseUser | null): AppUser | null => {
   return {
     id: u.id,
     email: email,
-    displayName: asString(meta.full_name) ?? asString(meta.name) ?? email,
+    displayName:
+      asString(meta.full_name) ??
+      asString(meta.name) ??
+      asString(meta.user_name) ??
+      email,
     photoURL: asString(meta.avatar_url) ?? asString(meta.picture),
   };
 };
 
-//  Start Google sign-in via a full-page OAuth redirect. Set `redirectTo` to the
-//  current URL so Supabase sends the user (and the auth code) right back here.
+//  Start GitHub sign-in via a full-page OAuth redirect. Set `redirectTo` to the
+//  current URL so Supabase sends the user (and the auth tokens) right back here.
 //  The session is then picked up by getSession()/onAuthStateChange on return,
 //  so the app logs the user in with no popup and nothing for the browser to block.
-export const signInWithGoogle = async (): Promise<void> => {
+export const signInWithGitHub = async (): Promise<void> => {
   const redirectTo = window.location.href || window.location.origin;
   const { error } = await supabase.auth.signInWithOAuth({
-    provider: 'google',
+    provider: 'github',
     options: { redirectTo },
   });
   if (error) throw error;
   //  signInWithOAuth() with the default (non-skip) redirect will navigate the
-  //  whole tab to Google's account picker before this resolves in most cases.
+  //  whole tab to GitHub's authorize page before this resolves in most cases.
 };
 
 //  Sign out

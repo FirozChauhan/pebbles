@@ -5,6 +5,7 @@ import {
   signInWithGoogleRedirect,
   signOutUser,
   completeRedirectSignIn,
+  isLocalDev,
 } from './lib/firebase.ts';
 import type { User } from 'firebase/auth';
 
@@ -49,7 +50,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const signIn = async () => {
-    await signInWithGoogle();
+    // Popup on localhost (nicer UX); redirect on deployed domains, where popup
+    // sign-in is unreliable (third-party-cookie blocking makes the popup
+    // channel fail silently — see isLocalDev). On production this navigates the
+    // page to Google and back; getRedirectResult() + the onAuthStateChanged
+    // listener below restore the session when the browser returns.
+    if (isLocalDev()) {
+      await signInWithGoogle();
+    } else {
+      await signInWithGoogleRedirect();
+    }
   };
 
   const signInRedirect = async () => {

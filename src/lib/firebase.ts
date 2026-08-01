@@ -33,7 +33,29 @@ if (!firebaseConfig.apiKey || !firebaseConfig.appId) {
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 
+// Surface the authDomain/projectId the build actually baked in. These values
+// are already public in the client bundle, so logging them is safe — and it's
+// the fastest way to confirm a Vercel deploy has the right Firebase config.
+console.log(
+  '[Pebbles auth] firebase config — authDomain:',
+  firebaseConfig.authDomain,
+  'projectId:',
+  firebaseConfig.projectId
+);
+
 export const googleProvider = new GoogleAuthProvider();
+
+// True when running on a local dev server. On *deployed* domains (Vercel,
+// custom domains, …) popup sign-in is unreliable: modern browsers block the
+// third-party cookies the popup channel relies on, so the user can complete
+// Google's account picker, the popup closes, yet onAuthStateChanged still
+// reports "signed out". The redirect flow runs in the top-level page context
+// and is the robust choice for SPAs in production. We keep the nicer popup UX
+// for local dev only.
+export const isLocalDev = (): boolean => {
+  const host = window.location.hostname;
+  return host === 'localhost' || host === '127.0.0.1' || host === '[::1]';
+};
 
 
 // Sign in with Google via popup. Throws auth/popup-blocked if the browser

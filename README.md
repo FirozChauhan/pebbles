@@ -136,8 +136,6 @@ Frontend ◀──── optimized PDF (auto-download) ────
 
 <div align="center">
 
-Made with ❤️ by **Asrar**
-
 </div>
 
 
